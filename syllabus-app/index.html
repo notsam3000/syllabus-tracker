@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Syllabus Ledger</title>
+<meta name="theme-color" content="#45569E">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Syllabus">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,400..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    /* Material 3 light scheme, custom indigo/study palette */
+    --md-primary: #45569E;
+    --md-on-primary: #FFFFFF;
+    --md-primary-container: #DEE1FF;
+    --md-on-primary-container: #030A4D;
+
+    --md-secondary: #2E7D5B;
+    --md-secondary-container: #C6EFD1;
+    --md-on-secondary-container: #052E10;
+
+    --md-error: #BA1A1A;
+    --md-error-container: #FFDAD6;
+
+    --md-surface: #FCFAFF;
+    --md-surface-container-low: #F6F3FC;
+    --md-surface-container: #F1EEF9;
+    --md-surface-container-high: #EBE7F4;
+    --md-surface-variant: #E3E1EC;
+    --md-on-surface: #1B1B21;
+    --md-on-surface-variant: #46464F;
+    --md-outline: #767680;
+    --md-outline-variant: #C6C5D0;
+
+    --r-xs: 8px;
+    --r-sm: 12px;
+    --r-md: 16px;
+    --r-lg: 24px;
+    --r-full: 999px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--md-surface);
+    color:var(--md-on-surface);
+    font-family:"Roboto Flex","Roboto",system-ui,sans-serif;
+    min-height:100vh;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  .appbar{
+    position:sticky;
+    top:0;
+    z-index:10;
+    background:var(--md-surface);
+    padding:calc(16px + env(safe-area-inset-top)) 20px 14px 20px;
+    border-bottom:1px solid var(--md-surface-container-high);
+  }
+  .appbar-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .appbar-titles{ min-width:0; }
+  .appbar-eyebrow{
+    font-size:12px;
+    color:var(--md-on-surface-variant);
+    margin:0 0 2px 0;
+    font-weight:500;
+  }
+  .appbar h1{
+    margin:0;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:-0.2px;
+  }
+  .pct-chip{
+    flex:none;
+    background:var(--md-primary-container);
+    color:var(--md-on-primary-container);
+    font-size:15px;
+    font-weight:700;
+    padding:8px 16px;
+    border-radius:var(--r-full);
+    white-space:nowrap;
+  }
+
+  .content{
+    max-width:640px;
+    margin:0 auto;
+    padding:16px 16px 48px 16px;
+  }
+
+  .overview-card{
+    background:var(--md-primary-container);
+    color:var(--md-on-primary-container);
+    border-radius:var(--r-lg);
+    padding:20px 22px;
+    margin-bottom:16px;
+  }
+  .overview-top{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .overview-top .num{
+    font-size:36px;
+    font-weight:700;
+    line-height:1;
+  }
+  .overview-top .lbl{
+    font-size:14px;
+    opacity:0.85;
+  }
+  .track{
+    height:8px;
+    background:rgba(255,255,255,0.45);
+    border-radius:var(--r-full);
+    overflow:hidden;
+    margin-bottom:16px;
+  }
+  .track-fill{
+    height:100%;
+    background:var(--md-primary);
+    border-radius:var(--r-full);
+    transition:width 0.25s ease;
+  }
+  .chip-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .chip{
+    font-size:12.5px;
+    font-weight:500;
+    padding:7px 12px;
+    border-radius:var(--r-full);
+    border:1px solid rgba(3,10,77,0.25);
+    background:rgba(255,255,255,0.35);
+  }
+  .chip b{ font-weight:700; }
+
+  .subject-card{
+    background:var(--md-surface-container-low);
+    border-radius:var(--r-md);
+    margin-bottom:12px;
+    overflow:hidden;
+  }
+  .subject-head{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:16px 18px;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .subject-head:active{ background:var(--md-surface-container); }
+  .expand-icon{
+    flex:none;
+    width:24px; height:24px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--md-on-surface-variant);
+    transition:transform 0.2s ease;
+  }
+  .subject-card.open .expand-icon{ transform:rotate(180deg); }
+  .subject-main{ flex:1; min-width:0; }
+  .subject-name{
+    font-size:16px;
+    font-weight:600;
+    margin:0 0 8px 0;
+  }
+  .subject-track{
+    height:6px;
+    background:var(--md-surface-variant);
+    border-radius:var(--r-full);
+    overflow:hidden;
+  }
+  .subject-track-fill{
+    height:100%;
+    background:var(--md-primary);
+    border-radius:var(--r-full);
+    transition:width 0.2s ease;
+  }
+  .subject-frac{
+    flex:none;
+    font-size:13px;
+    font-weight:600;
+    color:var(--md-on-surface-variant);
+    background:var(--md-surface-container-high);
+    padding:5px 10px;
+    border-radius:var(--r-full);
+  }
+
+  .subject-body{
+    display:none;
+    padding:0 14px 16px 14px;
+  }
+  .subject-card.open .subject-body{ display:block; }
+
+  .chapter-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 8px;
+    border-radius:var(--r-sm);
+  }
+  .chapter-row:active{ background:var(--md-surface-container); }
+
+  .m3-check{
+    flex:none;
+    width:20px; height:20px;
+    border-radius:4px;
+    border:2px solid var(--md-outline);
+    background:transparent;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+  .m3-check.done{
+    background:var(--md-primary);
+    border-color:var(--md-primary);
+  }
+  .m3-check svg{ width:14px; height:14px; display:none; }
+  .m3-check.done svg{ display:block; }
+
+  .chapter-name{
+    flex:1;
+    font-size:15px;
+    line-height:1.35;
+    min-width:0;
+    word-break:break-word;
+  }
+  .chapter-name.done{
+    color:var(--md-on-surface-variant);
+    text-decoration:line-through;
+  }
+
+  .icon-btn{
+    flex:none;
+    width:36px; height:36px;
+    border-radius:var(--r-full);
+    border:none;
+    background:transparent;
+    color:var(--md-on-surface-variant);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn:active{ background:var(--md-surface-container-high); color:var(--md-error); }
+  .icon-btn svg{ width:18px; height:18px; }
+
+  .empty-note{
+    font-size:13.5px;
+    color:var(--md-on-surface-variant);
+    padding:10px 8px 4px 8px;
+    line-height:1.4;
+  }
+
+  .field-row{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    padding:0 2px;
+  }
+  .m3-field{
+    flex:1;
+    font-family:inherit;
+    font-size:14.5px;
+    padding:12px 14px;
+    border-radius:var(--r-sm);
+    border:1.5px solid var(--md-outline-variant);
+    background:var(--md-surface);
+    color:var(--md-on-surface);
+  }
+  .m3-field:focus{
+    outline:none;
+    border-color:var(--md-primary);
+    box-shadow:0 0 0 1px var(--md-primary);
+  }
+  .btn-filled{
+    flex:none;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    padding:0 20px;
+    border-radius:var(--r-full);
+    border:none;
+    background:var(--md-primary);
+    color:var(--md-on-primary);
+    cursor:pointer;
+  }
+  .btn-filled:active{ opacity:0.85; }
+
+  .btn-text{
+    font-family:inherit;
+    font-size:13.5px;
+    font-weight:600;
+    background:none;
+    border:none;
+    color:var(--md-primary);
+    cursor:pointer;
+    padding:10px 6px;
+  }
+
+  .bulk-area{ display:none; padding:0 2px; }
+  .bulk-area.open{ display:block; }
+  .bulk-area textarea{
+    width:100%;
+    min-height:84px;
+    font-family:inherit;
+    font-size:14px;
+    padding:12px 14px;
+    border-radius:var(--r-sm);
+    border:1.5px solid var(--md-outline-variant);
+    background:var(--md-surface);
+    resize:vertical;
+    margin-bottom:8px;
+  }
+  .bulk-area textarea:focus{ outline:none; border-color:var(--md-primary); }
+
+  footer{
+    max-width:640px;
+    margin:8px auto 0 auto;
+    padding:8px 20px 0 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12.5px;
+    color:var(--md-on-surface-variant);
+  }
+  .save-note{ opacity:0; transition:opacity 0.3s ease; }
+  .save-note.show{ opacity:1; }
+  .reset-link{
+    background:none; border:none;
+    color:var(--md-error);
+    font-size:12.5px; font-weight:500;
+    cursor:pointer; padding:0;
+  }
+
+  @media (max-width:420px){
+    .appbar{ padding:calc(14px + env(safe-area-inset-top)) 16px 12px 16px; }
+    .appbar h1{ font-size:20px; }
+    .overview-top .num{ font-size:32px; }
+  }
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="appbar-row">
+    <div class="appbar-titles">
+      <p class="appbar-eyebrow">Class 12 · Commerce</p>
+      <h1>Syllabus Ledger</h1>
+    </div>
+    <div class="pct-chip" id="pctChip">0%</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="overview-card">
+    <div class="overview-top">
+      <span class="num" id="totalPct">0%</span>
+      <span class="lbl" id="totalSub">0 of 0 topics done</span>
+    </div>
+    <div class="track"><div class="track-fill" id="overviewTrackFill" style="width:0%"></div></div>
+    <div class="chip-row" id="milestones"></div>
+  </div>
+
+  <div id="subjects"></div>
+</div>
+
+<footer>
+  <span id="saveNote" class="save-note">saved</span>
+  <button class="reset-link" id="resetBtn">reset all data</button>
+</footer>
+
+<script>
+// ====== YOUR SUPABASE DETAILS ======
+const SUPABASE_URL = 'https://chrzbrcwkrvbisdftymb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocnpicmN3a3J2YmlzZGZ0eW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTM1NzgsImV4cCI6MjEwNDA4OTU3OH0.cXg6sp-TZxQRv2awAgrMDN-aD_7YPjzQABcKpH_D1lg';
+const ROW_ID = 'sam-syllabus-lucknow';
+// ====================================
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const DEFAULT_SUBJECTS = [
+  'Commerce','Economics','Accounts','Computer Science',
+  'English (Language and Literature)','Physical Education'
+];
+
+let state = null;
+let openSubjectId = null;
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+function makeDefaultState(){
+  return {
+    subjects: DEFAULT_SUBJECTS.map(name => ({ id: uid(), name, chapters: [] }))
+  };
+}
+
+async function loadState(){
+  try{
+    const { data, error } = await supabaseClient
+      .from('syllabus_data')
+      .select('payload')
+      .eq('id', ROW_ID)
+      .maybeSingle();
+    if(error) throw error;
+    if(data && data.payload && data.payload.subjects){
+      state = data.payload;
+      return;
+    }
+  }catch(e){
+    console.error('load failed', e);
+  }
+  state = makeDefaultState();
+}
+
+let saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try{
+      const { error } = await supabaseClient
+        .from('syllabus_data')
+        .upsert({ id: ROW_ID, payload: state, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      flashSaved('saved');
+    }catch(e){
+      console.error('save failed', e);
+      flashSaved('save failed — check your Supabase keys');
+    }
+  }, 250);
+}
+
+function flashSaved(msg){
+  const el = document.getElementById('saveNote');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+function weeksUntil(dateStr){
+  const target = new Date(dateStr);
+  const now = new Date();
+  const diffMs = target - now;
+  if(diffMs <= 0) return null;
+  return Math.round(diffMs / (1000*60*60*24*7));
+}
+
+function renderMilestones(){
+  const wrap = document.getElementById('milestones');
+  const items = [
+    { label: 'Preboards', date: '2026-11-01' },
+    { label: 'Boards', date: '2027-02-01' }
+  ];
+  wrap.innerHTML = items.map(m => {
+    const w = weeksUntil(m.date);
+    const wt = w === null ? 'underway' : `${w} weeks`;
+    return `<span class="chip">${m.label} <b>${wt}</b></span>`;
+  }).join('');
+}
+
+function subjectStats(subject){
+  const total = subject.chapters.length;
+  const done = subject.chapters.filter(c => c.done).length;
+  const pct = total === 0 ? 0 : Math.round((done/total)*100);
+  return { total, done, pct };
+}
+
+const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12.5L9.5 18L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const TRASH_SVG = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function renderTotals(){
+  let total = 0, done = 0;
+  state.subjects.forEach(s => {
+    total += s.chapters.length;
+    done += s.chapters.filter(c => c.done).length;
+  });
+  const pct = total === 0 ? 0 : Math.round((done/total)*100);
+  document.getElementById('totalPct').textContent = pct + '%';
+  document.getElementById('totalSub').textContent = `${done} of ${total} topics done`;
+  document.getElementById('overviewTrackFill').style.width = pct + '%';
+  document.getElementById('pctChip').textContent = pct + '%';
+}
+
+function render(){
+  renderTotals();
+  renderMilestones();
+  const container = document.getElementById('subjects');
+  container.innerHTML = '';
+
+  state.subjects.forEach(subject => {
+    const { total, done, pct } = subjectStats(subject);
+    const isOpen = subject.id === openSubjectId;
+
+    const card = document.createElement('div');
+    card.className = 'subject-card' + (isOpen ? ' open' : '');
+    card.dataset.id = subject.id;
+
+    const head = document.createElement('div');
+    head.className = 'subject-head';
+    head.innerHTML = `
+      <div class="subject-main">
+        <p class="subject-name">${escapeHtml(subject.name)}</p>
+        <div class="subject-track"><div class="subject-track-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="subject-frac">${done}/${total}</span>
+      <span class="expand-icon">${CHEVRON_SVG}</span>
+    `;
+    head.addEventListener('click', () => {
+      openSubjectId = isOpen ? null : subject.id;
+      render();
+    });
+    card.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'subject-body';
+
+    if(subject.chapters.length === 0){
+      const note = document.createElement('div');
+      note.className = 'empty-note';
+      note.textContent = 'No chapters added yet — add them below, or paste your whole syllabus at once.';
+      body.appendChild(note);
+    }
+
+    subject.chapters.forEach(ch => {
+      const row = document.createElement('div');
+      row.className = 'chapter-row';
+      row.innerHTML = `
+        <button class="m3-check ${ch.done ? 'done' : ''}" aria-label="toggle done">${CHECK_SVG}</button>
+        <span class="chapter-name ${ch.done ? 'done' : ''}">${escapeHtml(ch.name)}</span>
+        <button class="icon-btn" aria-label="delete">${TRASH_SVG}</button>
+      `;
+      row.querySelector('.m3-check').addEventListener('click', () => {
+        ch.done = !ch.done;
+        render();
+        scheduleSave();
+      });
+      row.querySelector('.icon-btn').addEventListener('click', () => {
+        subject.chapters = subject.chapters.filter(c => c.id !== ch.id);
+        render();
+        scheduleSave();
+      });
+      body.appendChild(row);
+    });
+
+    const fieldRow = document.createElement('div');
+    fieldRow.className = 'field-row';
+    fieldRow.innerHTML = `
+      <input class="m3-field" type="text" placeholder="Add a chapter or topic" />
+      <button class="btn-filled">Add</button>
+    `;
+    const input = fieldRow.querySelector('input');
+    const addChapter = () => {
+      const val = input.value.trim();
+      if(!val) return;
+      subject.chapters.push({ id: uid(), name: val, done: false });
+      input.value = '';
+      render();
+      scheduleSave();
+    };
+    fieldRow.querySelector('button').addEventListener('click', addChapter);
+    input.addEventListener('keydown', e => { if(e.key === 'Enter') addChapter(); });
+    body.appendChild(fieldRow);
+
+    const bulkToggle = document.createElement('button');
+    bulkToggle.className = 'btn-text';
+    bulkToggle.textContent = 'paste multiple chapters at once';
+    const bulkArea = document.createElement('div');
+    bulkArea.className = 'bulk-area';
+    bulkArea.innerHTML = `
+      <textarea placeholder="Paste chapter names, one per line"></textarea>
+      <button class="btn-filled">Add all</button>
+    `;
+    bulkToggle.addEventListener('click', () => bulkArea.classList.toggle('open'));
+    bulkArea.querySelector('button').addEventListener('click', () => {
+      const ta = bulkArea.querySelector('textarea');
+      const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+      lines.forEach(name => subject.chapters.push({ id: uid(), name, done: false }));
+      ta.value = '';
+      bulkArea.classList.remove('open');
+      render();
+      scheduleSave();
+    });
+    body.appendChild(bulkToggle);
+    body.appendChild(bulkArea);
+
+    card.appendChild(body);
+    container.appendChild(card);
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('This clears all subjects and chapters and starts fresh. Continue?')){
+    state = makeDefaultState();
+    openSubjectId = null;
+    render();
+    scheduleSave();
+  }
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(e => console.error('SW failed', e));
+  });
+}
+
+(async function init(){
+  await loadState();
+  render();
+})();
+</script>
+</body>
+</html>
