@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syllabus Ledger</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper: #F7F2E6;
+    --paper-line: #E4DAC5;
+    --ink: #1F3A5F;
+    --ink-soft: #4C6584;
+    --red: #B34632;
+    --green: #4C7A5E;
+    --text: #2B2620;
+    --text-faint: #8A8070;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh;
+    position:relative;
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    top:0; bottom:0; left:56px;
+    width:1px;
+    background:var(--red);
+    opacity:0.35;
+    z-index:0;
+  }
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:40px 28px 100px 76px;
+    position:relative;
+    z-index:1;
+  }
+  header{
+    margin-bottom:32px;
+  }
+  .eyebrow{
+    font-size:13px;
+    color:var(--text-faint);
+    letter-spacing:0.3px;
+    margin:0 0 4px 0;
+  }
+  h1{
+    font-family:Georgia,"Times New Roman",serif;
+    font-weight:600;
+    font-size:34px;
+    margin:0 0 18px 0;
+    color:var(--ink);
+    line-height:1.15;
+  }
+  .totals{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    border-top:1px solid var(--paper-line);
+    border-bottom:1px solid var(--paper-line);
+    padding:14px 0;
+  }
+  .totals .big{
+    font-family:Georgia,serif;
+    font-size:40px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .totals .sub{
+    font-size:14px;
+    color:var(--text-faint);
+  }
+  .milestones{
+    display:flex;
+    gap:24px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .milestone{
+    font-size:13px;
+    color:var(--text-faint);
+  }
+  .milestone b{
+    color:var(--ink);
+    font-weight:600;
+  }
+  .milestone .weeks{
+    color:var(--red);
+    font-weight:600;
+  }
+
+  .subject{
+    margin-bottom:6px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  .subject-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 0 10px 0;
+    cursor:pointer;
+    user-select:none;
+  }
+  .subject-name-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .caret{
+    font-size:11px;
+    color:var(--text-faint);
+    transition:transform 0.15s ease;
+    display:inline-block;
+    width:10px;
+  }
+  .subject.open .caret{ transform:rotate(90deg); }
+  .subject-name{
+    font-family:Georgia,serif;
+    font-size:19px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .subject-frac{
+    font-size:13px;
+    color:var(--text-faint);
+    white-space:nowrap;
+  }
+  .bar-track{
+    height:4px;
+    background:var(--paper-line);
+    margin-bottom:12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    background:var(--ink);
+    transition:width 0.2s ease;
+  }
+  .subject-body{
+    display:none;
+    padding-bottom:18px;
+  }
+  .subject.open .subject-body{ display:block; }
+
+  .chapter-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:7px 0;
+    border-bottom:1px dashed var(--paper-line);
+  }
+  .chapter-row:last-child{ border-bottom:none; }
+  .chk{
+    width:17px;
+    height:17px;
+    border:1.5px solid var(--ink-soft);
+    flex:none;
+    cursor:pointer;
+    position:relative;
+    background:transparent;
+  }
+  .chk.done{
+    background:var(--green);
+    border-color:var(--green);
+  }
+  .chk.done::after{
+    content:"";
+    position:absolute;
+    left:4px; top:1px;
+    width:5px; height:9px;
+    border-right:2px solid var(--paper);
+    border-bottom:2px solid var(--paper);
+    transform:rotate(40deg);
+  }
+  .chapter-name{
+    flex:1;
+    font-size:15px;
+    line-height:1.35;
+  }
+  .chapter-name.done{
+    color:var(--text-faint);
+    text-decoration:line-through;
+    text-decoration-color:var(--paper-line);
+  }
+  .del{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    font-size:16px;
+    cursor:pointer;
+    padding:2px 6px;
+    line-height:1;
+  }
+  .del:hover{ color:var(--red); }
+
+  .add-row{
+    display:flex;
+    gap:8px;
+    margin-top:12px;
+  }
+  .add-row input{
+    flex:1;
+    font-size:14px;
+    padding:8px 10px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    color:var(--text);
+    font-family:inherit;
+  }
+  .add-row input:focus{ outline:1px solid var(--ink-soft); }
+  .add-row button, .bulk-toggle, .reset-btn{
+    font-size:13px;
+    padding:8px 12px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .add-row button:hover{ background:var(--ink-soft); }
+  .bulk-toggle{
+    background:none;
+    color:var(--ink-soft);
+    text-decoration:underline;
+    padding:8px 0;
+  }
+  .bulk-area{
+    display:none;
+    margin-top:10px;
+  }
+  .bulk-area.open{ display:block; }
+  .bulk-area textarea{
+    width:100%;
+    min-height:80px;
+    font-family:inherit;
+    font-size:14px;
+    padding:8px 10px;
+    border:1px solid var(--paper-line);
+    resize:vertical;
+    margin-bottom:8px;
+  }
+  .empty-note{
+    font-size:13px;
+    color:var(--text-faint);
+    font-style:italic;
+    padding:6px 0 4px 0;
+  }
+
+  footer{
+    margin-top:36px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:var(--text-faint);
+  }
+  .reset-btn{
+    background:none;
+    color:var(--red);
+    text-decoration:underline;
+    padding:0;
+  }
+  .save-note{
+    opacity:0;
+    transition:opacity 0.3s ease;
+  }
+  .save-note.show{ opacity:1; }
+
+  @media (max-width:520px){
+    .wrap{ padding:28px 16px 80px 40px; }
+    body::before{ left:22px; }
+    h1{ font-size:27px; }
+    .totals .big{ font-size:32px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Class 12 · Commerce</p>
+    <h1>Syllabus Ledger</h1>
+    <div class="totals">
+      <div class="big" id="totalPct">0%</div>
+      <div class="sub" id="totalSub">0 of 0 topics done</div>
+    </div>
+    <div class="milestones" id="milestones"></div>
+  </header>
+
+  <div id="subjects"></div>
+
+  <footer>
+    <span id="saveNote" class="save-note">saved</span>
+    <button class="reset-btn" id="resetBtn">reset all data</button>
+  </footer>
+</div>
+
+<script>
+// ====== PASTE YOUR SUPABASE DETAILS HERE ======
+const SUPABASE_URL = 'https://chrzbrcwkrvbisdftymb.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocnpicmN3a3J2YmlzZGZ0eW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTM1NzgsImV4cCI6MjEwNDA4OTU3OH0.cXg6sp-TZxQRv2awAgrMDN-aD_7YPjzQABcKpH_D1lg';
+// Change this to any string only you would guess, so the URL alone
+// isn't enough to find your row. Doesn't need to be secret-secret.
+const ROW_ID = 'sam-syllabus-lucknow';
+// ================================================
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const DEFAULT_SUBJECTS = [
+  'Commerce','Economics','Accounts','Computer Science',
+  'English (Language and Literature)','Physical Education'
+];
+
+let state = null;
+let openSubjectId = null;
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+function makeDefaultState(){
+  return {
+    subjects: DEFAULT_SUBJECTS.map(name => ({ id: uid(), name, chapters: [] }))
+  };
+}
+
+async function loadState(){
+  try{
+    const { data, error } = await supabaseClient
+      .from('syllabus_data')
+      .select('payload')
+      .eq('id', ROW_ID)
+      .maybeSingle();
+    if(error) throw error;
+    if(data && data.payload && data.payload.subjects){
+      state = data.payload;
+      return;
+    }
+  }catch(e){
+    console.error('load failed', e);
+  }
+  state = makeDefaultState();
+}
+
+let saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try{
+      const { error } = await supabaseClient
+        .from('syllabus_data')
+        .upsert({ id: ROW_ID, payload: state, updated_at: new Date().toISOString() });
+      if(error) throw error;
+      flashSaved();
+    }catch(e){
+      console.error('save failed', e);
+      const el = document.getElementById('saveNote');
+      el.textContent = 'save failed \u2014 check your Supabase keys';
+      el.classList.add('show');
+    }
+  }, 250);
+}
+
+function flashSaved(){
+  const el = document.getElementById('saveNote');
+  el.textContent = 'saved';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 900);
+}
+
+function weeksUntil(dateStr){
+  const target = new Date(dateStr);
+  const now = new Date();
+  const diffMs = target - now;
+  if(diffMs <= 0) return null;
+  return Math.round(diffMs / (1000*60*60*24*7));
+}
+
+function renderMilestones(){
+  const wrap = document.getElementById('milestones');
+  const items = [
+    { label: 'Preboards', date: '2026-11-01' },
+    { label: 'Boards', date: '2027-02-01' }
+  ];
+  wrap.innerHTML = items.map(m => {
+    const w = weeksUntil(m.date);
+    const wt = w === null ? 'underway' : `${w} weeks away`;
+    return `<div class="milestone"><b>${m.label}</b> — ${wt}</div>`;
+  }).join('');
+}
+
+function subjectStats(subject){
+  const total = subject.chapters.length;
+  const done = subject.chapters.filter(c => c.done).length;
+  const pct = total === 0 ? 0 : Math.round((done/total)*100);
+  return { total, done, pct };
+}
+
+function renderTotals(){
+  let total = 0, done = 0;
+  state.subjects.forEach(s => {
+    total += s.chapters.length;
+    done += s.chapters.filter(c => c.done).length;
+  });
+  const pct = total === 0 ? 0 : Math.round((done/total)*100);
+  document.getElementById('totalPct').textContent = pct + '%';
+  document.getElementById('totalSub').textContent = `${done} of ${total} topics done`;
+}
+
+function render(){
+  renderTotals();
+  renderMilestones();
+  const container = document.getElementById('subjects');
+  container.innerHTML = '';
+
+  state.subjects.forEach(subject => {
+    const { total, done, pct } = subjectStats(subject);
+    const isOpen = subject.id === openSubjectId;
+
+    const secEl = document.createElement('div');
+    secEl.className = 'subject' + (isOpen ? ' open' : '');
+
+    const head = document.createElement('div');
+    head.className = 'subject-head';
+    head.innerHTML = `
+      <div class="subject-name-row">
+        <span class="caret">&#9656;</span>
+        <span class="subject-name">${escapeHtml(subject.name)}</span>
+      </div>
+      <span class="subject-frac">${done}/${total}</span>
+    `;
+    head.addEventListener('click', () => {
+      openSubjectId = isOpen ? null : subject.id;
+      render();
+    });
+    secEl.appendChild(head);
+
+    const barTrack = document.createElement('div');
+    barTrack.className = 'bar-track';
+    barTrack.innerHTML = `<div class="bar-fill" style="width:${pct}%"></div>`;
+    secEl.appendChild(barTrack);
+
+    const body = document.createElement('div');
+    body.className = 'subject-body';
+
+    if(subject.chapters.length === 0){
+      const note = document.createElement('div');
+      note.className = 'empty-note';
+      note.textContent = 'No chapters added yet — add them below, or paste your whole syllabus at once.';
+      body.appendChild(note);
+    }
+
+    subject.chapters.forEach(ch => {
+      const row = document.createElement('div');
+      row.className = 'chapter-row';
+      row.innerHTML = `
+        <button class="chk ${ch.done ? 'done' : ''}" aria-label="toggle done"></button>
+        <span class="chapter-name ${ch.done ? 'done' : ''}">${escapeHtml(ch.name)}</span>
+        <button class="del" aria-label="delete">&times;</button>
+      `;
+      row.querySelector('.chk').addEventListener('click', () => {
+        ch.done = !ch.done;
+        render();
+        scheduleSave();
+      });
+      row.querySelector('.del').addEventListener('click', () => {
+        subject.chapters = subject.chapters.filter(c => c.id !== ch.id);
+        render();
+        scheduleSave();
+      });
+      body.appendChild(row);
+    });
+
+    const addRow = document.createElement('div');
+    addRow.className = 'add-row';
+    addRow.innerHTML = `
+      <input type="text" placeholder="Add a chapter or topic" />
+      <button>Add</button>
+    `;
+    const input = addRow.querySelector('input');
+    const addChapter = () => {
+      const val = input.value.trim();
+      if(!val) return;
+      subject.chapters.push({ id: uid(), name: val, done: false });
+      input.value = '';
+      render();
+      scheduleSave();
+      // refocus after re-render
+      const newHead = [...container.querySelectorAll('.subject')].find(s => s.dataset.id === subject.id);
+    };
+    addRow.querySelector('button').addEventListener('click', addChapter);
+    input.addEventListener('keydown', e => { if(e.key === 'Enter') addChapter(); });
+    body.appendChild(addRow);
+
+    const bulkToggle = document.createElement('button');
+    bulkToggle.className = 'bulk-toggle';
+    bulkToggle.textContent = 'paste multiple chapters at once';
+    const bulkArea = document.createElement('div');
+    bulkArea.className = 'bulk-area';
+    bulkArea.innerHTML = `
+      <textarea placeholder="Paste chapter names, one per line"></textarea>
+      <button class="add-row-btn-alt" style="font-size:13px;padding:8px 12px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-family:inherit;">Add all</button>
+    `;
+    bulkToggle.addEventListener('click', () => {
+      bulkArea.classList.toggle('open');
+    });
+    bulkArea.querySelector('button').addEventListener('click', () => {
+      const ta = bulkArea.querySelector('textarea');
+      const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+      lines.forEach(name => subject.chapters.push({ id: uid(), name, done: false }));
+      ta.value = '';
+      bulkArea.classList.remove('open');
+      render();
+      scheduleSave();
+    });
+    body.appendChild(bulkToggle);
+    body.appendChild(bulkArea);
+
+    secEl.appendChild(body);
+    secEl.dataset.id = subject.id;
+    container.appendChild(secEl);
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('This clears all subjects and chapters and starts fresh. Continue?')){
+    state = makeDefaultState();
+    openSubjectId = null;
+    render();
+    scheduleSave();
+  }
+});
+
+(async function init(){
+  await loadState();
+  render();
+})();
+</script>
+</body>
+</html>
